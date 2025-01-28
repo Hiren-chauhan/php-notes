@@ -1,0 +1,326 @@
+Folder Structure
+-------------------------------------------------------
+/login_register_form/
+│
+├── index.php
+├── register.php
+├── login.php
+├── forgot_password.php
+├── logout.php
+├── style.css
+└── includes/
+    ├── db.php
+    └── session_check.php
+=============================================================
+1. Database Setup
+Make sure your MySQL database is set up as follows:
+---------------------------------------------------------------
+CREATE DATABASE user_db;
+
+USE user_db;
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'vendor', 'user') NOT NULL DEFAULT 'user'
+);
+=====================================================================
+2. includes/db.php
+This file handles the database connection.
+------------------------------------------------------------------
+<?php
+// Database connection settings
+$host = 'localhost';
+$user = 'root'; // your database username
+$password = ''; // your database password
+$dbname = 'user_db';
+
+// Create connection
+$conn = mysqli_connect($host, $user, $password, $dbname);
+
+// Check connection
+if (!$conn) {
+    die("Connection failed: " . mysqli_connect_error());
+}
+?>
+=========================================================================
+3. includes/session_check.php
+This file checks if the user is logged in and has the correct role.
+-------------------------------------------------------------------
+<?php
+session_start();
+
+// Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
+    header("Location: index.php"); // Redirect to login if not logged in
+    exit();
+}
+?>
+========================================================================
+4. index.php
+This file contains both the login and registration forms within a tabbed interface.
+------------------------------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="style.css">
+    <title>Login & Register</title>
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="text-center">Login & Register</h2>
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a class="nav-link active" id="login-tab" data-bs-toggle="tab" href="#login" role="tab" aria-controls="login" aria-selected="true">Login</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" id="register-tab" data-bs-toggle="tab" href="#register" role="tab" aria-controls="register" aria-selected="false">Register</a>
+            </li>
+        </ul>
+        <div class="tab-content" id="myTabContent">
+            <div class="tab-pane fade show active" id="login" role="tabpanel" aria-labelledby="login-tab">
+                <form id="loginForm" method="POST" action="login.php">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" name="password" required>
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="fas fa-eye" id="eyeIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                    <div class="mt-3">
+                        <a href="forgot_password.php">Forgot Password?</a>
+                    </div>
+                </form>
+            </div>
+            <div class="tab-pane fade" id="register" role="tabpanel" aria-labelledby="register-tab">
+                <form id="registerForm" method="POST" action="register.php">
+                    <div class="mb-3">
+                        <label for="reg_email" class="form-label">Email address</label>
+                        < input type="email" class="form-control" id="reg_email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reg_password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="reg_password" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Select Role</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="user">User </option>
+                            <option value="vendor">Vendor</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success">Register</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toggle password visibility
+        $('#togglePassword').click(function () {
+            const passwordField = $('#password');
+            const eyeIcon = $('#eyeIcon');
+            const type = passwordField.attr('type') === 'password' ? 'text' : 'password';
+            passwordField.attr('type', type);
+            eyeIcon.toggleClass('fa-eye fa-eye-slash');
+        });
+    </script>
+</body>
+</html>
+=========================================================================
+5. register.php
+This file handles user registration.
+-------------------------------------------------------------------------
+<?php
+include 'includes/db.php';
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $role = mysqli_real_escape_string($conn, $_POST['role']);
+
+    $query = "INSERT INTO users (email, password, role) VALUES ('$email', '$password', '$role')";
+    if (mysqli_query($conn, $query)) {
+        header("Location: index.php?success=Registration successful. You can now log in.");
+        exit();
+    } else {
+        echo "Error: " . mysqli_error($conn);
+    }
+}
+?>
+=========================================================================
+6. login.php
+This file handles user login and redirects based on role.
+-------------------------------------------------------------------
+<?php
+include 'includes/db.php';
+session_start();
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $password = $_POST['password'];
+
+    $query = "SELECT * FROM users WHERE email='$email'";
+    $result = mysqli_query($conn, $query);
+    $user = mysqli_fetch_assoc($result);
+
+    if ($user && password_verify($password, $user['password'])) {
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['role'] = $user['role'];
+
+        switch ($user['role']) {
+            case 'admin':
+                header("Location: admin_dashboard.php");
+                break;
+            case 'vendor':
+                header("Location: vendor_dashboard.php");
+                break;
+            default:
+                header("Location: user_dashboard.php");
+                break;
+        }
+        exit();
+    } else {
+        echo "Invalid email or password.";
+    }
+}
+?>
+=====================================================================
+7. forgot_password.php
+This file can be used for password recovery (implementation can vary).
+-----------------------------------------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Forgot Password</title>
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Forgot Password</h2>
+        <form method="POST" action="send_reset_link.php">
+            <div class="mb-3">
+                <label for="email" class="form-label">Enter your email</label>
+                <input type="email" class="form-control" id="email" name="email" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Send Reset Link</button>
+        </form>
+    </div>
+</body>
+</html>
+===========================================================================
+8. logout.php
+This file handles user logout.
+-----------------------------------------------------------------------------
+<?php
+session_start();
+session_destroy(); // Destroy the session
+header("Location: index.php"); // Redirect to login page
+exit();
+?>
+========================================================================
+9. Dashboard Pages
+Create separate dashboard pages for each role, ensuring they include session checks.
+
+Example: admin_dashboard.php
+php php
+
+Welcome Admin!
+This is the admin dashboard.
+
+Logout ```
+Example: vendor_dashboard.php
+----------------------------------------------------------------------------------
+<?php
+include 'includes/session_check.php';
+if ($_SESSION['role'] !== 'vendor') {
+    header("Location: index.php"); // Redirect if not vendor
+    exit();
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vendor Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Welcome Vendor!</h1>
+    <p>This is the vendor dashboard.</p>
+    <a href="logout.php">Logout</a>
+</body>
+</html>
+------------------------------------------------------------------------------------------
+<?php
+include 'includes/session_check.php';
+if ($_SESSION['role'] !== 'user') {
+    header("Location: index.php"); // Redirect if not user
+    exit();
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Welcome User!</h1>
+    <p>This is the user dashboard.</p>
+    <a href="logout.php">Logout</a>
+</body>
+</html>
+=======================================================================================
+10. style.css
+Add some basic styling to enhance the appearance of your application.
+---------------------------------------------------------------
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f8f9fa;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 600px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    margin-bottom: 20px;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn {
+    width: 100%;
+}
