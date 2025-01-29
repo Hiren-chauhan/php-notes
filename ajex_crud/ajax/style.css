@@ -1,0 +1,21 @@
+   .card {
+     border-radius: 15px;
+   }
+   .btn-primary {
+     background-color: #007bff;
+     border-color: #007bff;
+   }
+   .btn-primary:hover {
+     background-color: #0056b3;
+     border-color: #004085;
+   }
+   .form-label {
+     font-weight: bold;
+   }
+   #alertBox {
+     position: absolute;
+     top: 20px;
+     right: 20px;
+     width: fit-content;
+     z-index: 1050; /* Ensures the alert is on top of other elements */
+   }
